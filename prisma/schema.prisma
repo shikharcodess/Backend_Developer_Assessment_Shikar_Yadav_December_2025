@@ -26,6 +26,12 @@ enum JobType {
   BACKGROUND_TASK
 }
 
+enum PorjectInviteStatus {
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
 // USER & AUTH
 model User {
   id           String  @id @default(uuid())
@@ -70,10 +76,21 @@ model Project {
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  projectInvites ProjectInvite[]
 
   @@index([createdById])
+}
+
+model ProjectInvite {
+  id        String              @id @default(uuid())
+  status    PorjectInviteStatus @default(SENT)
+  email     String
+  projectId String
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
 
 model ProjectMember {
