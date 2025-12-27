@@ -3,7 +3,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prisma:pull:dev": "dotenv -e .env -- prisma db pull && prisma generate",
+    "prisma:pull:prod": "dotenv -e .env -- prisma db pull && prisma generate",
+    "migrate:dev": "dotenv -e .env -- prisma migrate dev",
+    "migrate:prod": "dotenv -e .env -- prisma migrate deploy",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
   },
   "type": "module",
   "keywords": [],
@@ -24,7 +31,9 @@
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "@types/amqplib": "^0.10.8",
+    "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "amqplib": "^0.10.9",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",

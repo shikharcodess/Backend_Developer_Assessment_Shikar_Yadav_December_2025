@@ -1,6 +1,6 @@
 import amqp, { Channel, ChannelModel } from "amqplib";
 import { ConsumeHandler, PublishOptions } from "../types/rabbitmq";
-import { ENV } from "../config/env";
+import { ENV } from "../config/env/env";
 import { logger } from "../common/logger";
 
 class _rabbitMQ {
@@ -15,10 +15,13 @@ class _rabbitMQ {
   private retryDelay = 5000;
   private maxRetries = 10;
 
-  constructor() {
-    this.url = ENV.RABBITMQ_URL || "amqp://guest:guest@localhost:5672";
-    this.exchange = process.env.RABBITMQ_EXCHANGE || "app.events";
-    this.exchangeType = "topic";
+  constructor(
+    url: string,
+    exchange: string,
+    exchangeType?: "direct" | "topic" | "fanout"
+  ) {
+    this.url = url;
+    ((this.exchange = exchange), (this.exchangeType = exchangeType || "topic"));
   }
 
   async connect(retry = 0): Promise<void> {
@@ -132,12 +135,12 @@ class _rabbitMQ {
     try {
       await this.channel?.close();
       await this.connection?.close();
-      logger.info("🛑 RabbitMQ connection closed");
+      logger.info("RabbitMQ connection closed");
     } catch (err) {
       logger.error("RabbitMQ close error:", err);
     }
   }
 }
 
-const rabbitMQ = new _rabbitMQ();
+const rabbitMQ = new _rabbitMQ(ENV.RABBITMQ_URL, "jobs.exchange");
 export default rabbitMQ;
