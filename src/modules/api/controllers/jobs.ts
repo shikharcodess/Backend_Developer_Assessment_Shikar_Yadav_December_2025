@@ -3,7 +3,7 @@ import { createJobSchema, jobParamsSchema } from "../validators/jobs";
 import { z } from "zod";
 import { prisma } from "../../../config/db/db";
 import { v4 as uuidv4 } from "uuid";
-import rabbitMQ from "../../../services/rabbitmq";
+import rabbitMQ from "../../jobs/rabbitmq";
 
 export async function createJob(req: Request, res: Response): Promise<void> {
   try {

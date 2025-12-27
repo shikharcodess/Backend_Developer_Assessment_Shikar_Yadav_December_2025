@@ -1,7 +1,7 @@
 import amqp, { Channel, ChannelModel } from "amqplib";
-import { ConsumeHandler, PublishOptions } from "../types/rabbitmq";
-import { ENV } from "../config/env/env";
-import { logger } from "../common/logger";
+import { ConsumeHandler, PublishOptions } from "../../types/rabbitmq";
+import { ENV } from "../../config/env/env";
+import { logger } from "../../common/logger";
 
 class _rabbitMQ {
   private connection!: ChannelModel;

@@ -34,10 +34,10 @@ export const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string(),
 
   // Redis
-  REDIS_USER: z.string().optional(),
-  REDIS_PASSWORD: z.string().optional(),
-  REDIS_HOST: z.string().optional(),
-  REDIS_PORT: number.optional(),
+  REDIS_USER: z.string().min(2),
+  REDIS_PASSWORD: z.string().min(2),
+  REDIS_HOST: z.string().min(2),
+  REDIS_PORT: number,
 
   // RabbitMQ
   RABBITMQ_URL: z.url(),
