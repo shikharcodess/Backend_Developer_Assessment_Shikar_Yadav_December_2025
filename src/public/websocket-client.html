@@ -177,7 +177,7 @@
       let projects = [];
       let workspaces = [];
 
-      const API_BASE = "http://localhost:8888";
+      const API_BASE = window.location.origin;
       const terminal = document.getElementById("terminal");
 
       function log(message, type = "in") {
