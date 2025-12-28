@@ -1,0 +1,26 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const authorization_1 = require("../middlewares/authorization");
+const projects_1 = require("../controllers/projects");
+const workspace_middleware_1 = require("../middlewares/workspace-middleware");
+const feature_flag_1 = require("../middlewares/feature-flag");
+const feature_flags_1 = require("../../../common/feature-flags");
+const projectRoutes = (0, express_1.Router)();
+projectRoutes.get("/", authorization_1.authMiddleware, projects_1.readAllProject);
+projectRoutes.post("/", authorization_1.authMiddleware, projects_1.createProject);
+projectRoutes.post("/:projectId/workspace", authorization_1.authMiddleware, workspace_middleware_1.workspaceRoleBasedAccess, projects_1.createWorkspace);
+projectRoutes.get("/:projectId/workspace", authorization_1.authMiddleware, workspace_middleware_1.workspaceRoleBasedAccess, projects_1.getAllWorkspace);
+projectRoutes.patch("/:projectId/workspace/:workspaceId", authorization_1.authMiddleware, workspace_middleware_1.workspaceRoleBasedAccess, projects_1.updateWorkspace);
+projectRoutes.delete("/:projectId/workspace/:workspaceId", authorization_1.authMiddleware, workspace_middleware_1.workspaceRoleBasedAccess, projects_1.deleteWorkspace);
+projectRoutes.get("/:projectId/workspace/:workspaceId", authorization_1.authMiddleware, workspace_middleware_1.workspaceRoleBasedAccess, projects_1.getOneWorkspace);
+projectRoutes.get("/:projectId/invite", authorization_1.authMiddleware, (0, feature_flag_1.requireFeature)(feature_flags_1.FeatureFlag.PROJECT_INVITES), projects_1.getAllInvites);
+projectRoutes.post("/:projectId/invite", authorization_1.authMiddleware, (0, feature_flag_1.requireFeature)(feature_flags_1.FeatureFlag.PROJECT_INVITES), projects_1.inviteUser);
+projectRoutes.post("/:projectId/invite/:inviteId/accept", authorization_1.authMiddleware, (0, feature_flag_1.requireFeature)(feature_flags_1.FeatureFlag.PROJECT_INVITES), projects_1.acceptInvite);
+projectRoutes.post("/:projectId/invite/:inviteId/reject", authorization_1.authMiddleware, (0, feature_flag_1.requireFeature)(feature_flags_1.FeatureFlag.PROJECT_INVITES), projects_1.rejectInvite);
+projectRoutes.get("/:projectId", authorization_1.authMiddleware, projects_1.readOneProject);
+projectRoutes.patch("/:projectId", authorization_1.authMiddleware, projects_1.updateProject);
+projectRoutes.delete("/:projectId", authorization_1.authMiddleware, projects_1.deleteProject);
+projectRoutes.get("/:projectId/members", authorization_1.authMiddleware, projects_1.getAllProjectMembers);
+exports.default = projectRoutes;
+//# sourceMappingURL=project-route.js.map

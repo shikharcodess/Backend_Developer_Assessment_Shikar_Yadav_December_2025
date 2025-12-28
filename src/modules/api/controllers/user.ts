@@ -6,6 +6,31 @@ import {
 } from "../validators/projects";
 import { z } from "zod";
 
+/**
+ * @openapi
+ * /user/me:
+ *   get:
+ *     summary: Get current user
+ *     description: Retrieve details of the currently authenticated user
+ *     tags:
+ *       - Users
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
 export async function GetCurrentLoggedInUser(
   req: Request,
   res: Response
@@ -40,3 +65,29 @@ export async function GetCurrentLoggedInUser(
     });
   }
 }
+
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         name:
+ *           type: string
+ *         email:
+ *           type: string
+ *           format: email
+ *         projects:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Project'
+ *         jobs:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Job'
+ *         memberships:
+ *           type: array
+ */

@@ -48,5 +48,6 @@ export const updateWorkspaceSchema = z.object({
 });
 
 export const workspaceIdParamSchema = z.object({
-  workspaceId: uuidSchema,
+  projectId: uuidSchema,
+  workspaceId: uuidSchema.optional(),
 });

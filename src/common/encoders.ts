@@ -10,7 +10,7 @@ export function decodeBase64(encoded: string): string {
 
 export async function hashPassword(
   password: string,
-  saltRound: string | 12
+  saltRound: number | 12
 ): Promise<string> {
   const hashedPassword = await bcrypt.hash(password, saltRound);
   return hashedPassword;

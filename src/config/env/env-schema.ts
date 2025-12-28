@@ -41,4 +41,7 @@ export const envSchema = z.object({
 
   // RabbitMQ
   RABBITMQ_URL: z.url(),
+
+  // Feature flags
+  FEATURE_FLAG_PROJECT_INVITES: bool.optional(),
 });

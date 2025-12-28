@@ -2,6 +2,8 @@ import amqp, { Channel, ChannelModel } from "amqplib";
 import { ConsumeHandler, PublishOptions } from "../../types/rabbitmq";
 import { ENV } from "../../config/env/env";
 import { logger } from "../../common/logger";
+import { prisma } from "../../config/db/db";
+import redisService from "../../common/redis";
 
 class _rabbitMQ {
   private connection!: ChannelModel;
@@ -112,18 +114,63 @@ class _rabbitMQ {
         if (!msg) return;
 
         try {
-          const content = JSON.parse(msg.content.toString()) as T;
-          await handler(content, msg);
+          const content = JSON.parse(msg.content.toString()) as {
+            jobId: string;
+          };
+
+          const jobData = await prisma.job.findUnique({
+            where: { id: content.jobId },
+          });
+
+          if (!jobData) {
+            this.channel.nack(msg, false, false);
+            return;
+          }
+
+          if (jobData.attempts >= jobData.maxAttempts) {
+            await prisma.job.update({
+              where: { id: jobData.id },
+              data: { status: "FAILED" },
+            });
+            this.channel.nack(msg, false, false);
+            return;
+          }
+
+          if (!jobData.idempotencyKey) {
+            this.channel.nack(msg, false, false);
+            return;
+          }
+
+          const exists = await redisService.redisClient.get(
+            jobData.idempotencyKey
+          );
+
+          if (exists) {
+            this.channel.ack(msg);
+            return;
+          }
+
+          await redisService.redisClient.set(
+            jobData.idempotencyKey,
+            "1",
+            "EX",
+            86400
+          );
+
+          await handler({ payload: jobData.payload } as T, msg);
+
+          await prisma.job.update({
+            where: { id: jobData.id },
+            data: {
+              status: "COMPLETED",
+              attempts: jobData.attempts + 1,
+            },
+          });
+
           this.channel.ack(msg);
         } catch (err) {
-          logger.error("Consumer error:", err);
-
-          /**
-           * Requeue logic:
-           * - false → message discarded
-           * - true  → retry
-           */
-          this.channel.nack(msg, false, true);
+          logger.error("Job processing failed", err);
+          this.channel.nack(msg, false, true); // retry
         }
       },
       { noAck: false }

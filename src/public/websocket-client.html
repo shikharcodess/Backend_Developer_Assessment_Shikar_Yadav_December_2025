@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Realtime WS Test Client</title>
+
+    <!-- Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family: monospace;
+      }
+
+      body {
+        margin: 0;
+        background: #0f1115;
+        color: #e6e6e6;
+        height: 100vh;
+        display: flex;
+      }
+
+      .left,
+      .right {
+        width: 50%;
+        padding: 10px;
+        border-right: 1px solid #222;
+      }
+
+      .right {
+        border-right: none;
+      }
+
+      h3 {
+        margin-top: 0;
+        color: #7dd3fc;
+      }
+
+      .terminal {
+        background: #050608;
+        height: calc(100% - 40px);
+        padding: 10px;
+        overflow-y: auto;
+        border-radius: 4px;
+        border: 1px solid #222;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+
+      .log-in {
+        color: #22c55e;
+      }
+
+      .log-out {
+        color: #60a5fa;
+      }
+
+      .log-error {
+        color: #ef4444;
+      }
+
+      .controls button {
+        width: 100%;
+        margin-bottom: 6px;
+        padding: 8px;
+        background: #1f2933;
+        color: #e6e6e6;
+        border: 1px solid #333;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .controls button:hover {
+        background: #374151;
+      }
+
+      .controls button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .controls input,
+      .controls select {
+        width: 100%;
+        margin-bottom: 6px;
+        padding: 6px;
+        background: #020617;
+        color: #e6e6e6;
+        border: 1px solid #333;
+        border-radius: 4px;
+      }
+
+      .auth-section {
+        padding: 10px;
+        background: #1a1d24;
+        border-radius: 4px;
+        margin-bottom: 10px;
+      }
+
+      .user-info {
+        padding: 8px;
+        background: #0a3d2c;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        font-size: 12px;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- LEFT: TERMINAL -->
+    <div class="left">
+      <h3>📡 Event Log</h3>
+      <div id="terminal" class="terminal"></div>
+    </div>
+
+    <!-- RIGHT: CONTROLS -->
+    <div class="right">
+      <h3>🎮 Client Controls</h3>
+
+      <!-- AUTH SECTION -->
+      <div class="auth-section" id="loginSection">
+        <input id="email" type="email" placeholder="Email" />
+        <input id="password" type="password" placeholder="Password" />
+        <button onclick="login()">🔐 Login</button>
+      </div>
+
+      <!-- USER INFO -->
+      <div id="userInfo" class="user-info hidden"></div>
+
+      <div class="controls">
+        <!-- DROPDOWNS -->
+        <select id="projectSelect" title="Select a project" disabled>
+          <option value="">Select Project</option>
+        </select>
+
+        <select id="workspaceSelect" title="Select a workspace" disabled>
+          <option value="">Select Workspace</option>
+        </select>
+
+        <button id="connectBtn" onclick="connect()" disabled>🔌 Connect</button>
+        <button id="disconnectBtn" onclick="disconnect()" disabled>
+          ❌ Disconnect
+        </button>
+        <button onclick="logout()">🚪 Logout</button>
+
+        <hr />
+
+        <button id="joinBtn" onclick="joinWorkspace()" disabled>
+          📂 Join Project + Workspace
+        </button>
+        <button id="leaveBtn" onclick="leaveWorkspace()" disabled>
+          🚪 Leave Project + Workspace
+        </button>
+
+        <hr />
+
+        <button id="fileChangeBtn" onclick="sendFileChange()" disabled>
+          📝 File Change
+        </button>
+        <button id="cursorMoveBtn" onclick="sendCursorMove()" disabled>
+          🖱 Cursor Move
+        </button>
+      </div>
+    </div>
+
+    <script>
+      let socket = null;
+      let authToken = null;
+      let currentUser = null;
+      let projects = [];
+      let workspaces = [];
+
+      const API_BASE = "http://localhost:8888";
+      const terminal = document.getElementById("terminal");
+
+      function log(message, type = "in") {
+        const div = document.createElement("div");
+        div.className =
+          type === "error"
+            ? "log-error"
+            : type === "out"
+              ? "log-out"
+              : "log-in";
+
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        terminal.appendChild(div);
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+
+      async function login() {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+
+        if (!email || !password) {
+          log("Please enter email and password", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || "Login failed");
+          }
+
+          authToken = data.data.access_token;
+          log("Login successful");
+
+          await fetchUserInfo();
+          await fetchProjects();
+
+          document.getElementById("loginSection").classList.add("hidden");
+          document.getElementById("connectBtn").disabled = false;
+          document.getElementById("projectSelect").disabled = false;
+        } catch (error) {
+          log(`Login error: ${error.message}`, "error");
+        }
+      }
+
+      async function fetchUserInfo() {
+        try {
+          const response = await fetch(`${API_BASE}/user/me`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch user info");
+          }
+
+          currentUser = data.data;
+          document.getElementById("userInfo").classList.remove("hidden");
+          document.getElementById("userInfo").innerHTML = `
+            👤 User: ${data.data.name || data.data.email}<br>
+            🆔 ID: ${data.data.id}
+          `;
+
+          log(`User info loaded: ${data.data.email}`);
+        } catch (error) {
+          log(`Error fetching user: ${error.message}`, "error");
+        }
+      }
+
+      async function fetchProjects() {
+        try {
+          const response = await fetch(`${API_BASE}/project`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch projects");
+          }
+
+          projects = data.data;
+          const select = document.getElementById("projectSelect");
+          select.innerHTML = '<option value="">Select Project</option>';
+
+          projects.forEach((project) => {
+            const option = document.createElement("option");
+            option.value = project.id;
+            option.textContent = `${project.name} (${project.id})`;
+            select.appendChild(option);
+          });
+
+          log(`Loaded ${projects.length} projects`);
+        } catch (error) {
+          log(`Error fetching projects: ${error.message}`, "error");
+        }
+      }
+
+      async function fetchWorkspaces(projectId) {
+        try {
+          const response = await fetch(
+            `${API_BASE}/project/${projectId}/workspace`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            }
+          );
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch workspaces");
+          }
+
+          workspaces = data.data;
+          const select = document.getElementById("workspaceSelect");
+          select.innerHTML = '<option value="">Select Workspace</option>';
+
+          workspaces.forEach((workspace) => {
+            const option = document.createElement("option");
+            option.value = workspace.id;
+            option.textContent = `${workspace.name} (${workspace.id})`;
+            select.appendChild(option);
+          });
+
+          select.disabled = false;
+          log(`Loaded ${workspaces.length} workspaces`);
+        } catch (error) {
+          log(`Error fetching workspaces: ${error.message}`, "error");
+        }
+      }
+
+      document
+        .getElementById("projectSelect")
+        .addEventListener("change", (e) => {
+          const projectId = e.target.value;
+          if (projectId) {
+            fetchWorkspaces(projectId);
+          } else {
+            document.getElementById("workspaceSelect").innerHTML =
+              '<option value="">Select Workspace</option>';
+            document.getElementById("workspaceSelect").disabled = true;
+          }
+        });
+
+      function logout() {
+        if (socket) disconnect();
+        authToken = null;
+        currentUser = null;
+        projects = [];
+        workspaces = [];
+
+        document.getElementById("loginSection").classList.remove("hidden");
+        document.getElementById("userInfo").classList.add("hidden");
+        document.getElementById("email").value = "";
+        document.getElementById("password").value = "";
+        document.getElementById("projectSelect").innerHTML =
+          '<option value="">Select Project</option>';
+        document.getElementById("workspaceSelect").innerHTML =
+          '<option value="">Select Workspace</option>';
+
+        document.getElementById("connectBtn").disabled = true;
+        document.getElementById("projectSelect").disabled = true;
+        document.getElementById("workspaceSelect").disabled = true;
+
+        log("Logged out");
+      }
+
+      function connect() {
+        if (socket) {
+          log("Already connected", "error");
+          return;
+        }
+
+        if (!authToken) {
+          log("Please login first", "error");
+          return;
+        }
+
+        socket = io(API_BASE, {
+          path: "/socket.io",
+          transports: ["websocket"],
+          auth: { token: authToken },
+        });
+
+        socket.on("connect", () => {
+          log(`Connected (${socket.id})`);
+          document.getElementById("disconnectBtn").disabled = false;
+          document.getElementById("joinBtn").disabled = false;
+        });
+
+        socket.on("disconnect", () => {
+          log("Disconnected");
+          socket = null;
+          document.getElementById("disconnectBtn").disabled = true;
+          document.getElementById("joinBtn").disabled = true;
+          document.getElementById("leaveBtn").disabled = true;
+          document.getElementById("fileChangeBtn").disabled = true;
+          document.getElementById("cursorMoveBtn").disabled = true;
+        });
+
+        socket.onAny((event, payload) => {
+          log(`⬅ ${event}\n${JSON.stringify(payload, null, 2)}`);
+        });
+
+        socket.on("connect_error", (err) => {
+          log(`Connect error: ${err.message}`, "error");
+        });
+      }
+
+      function disconnect() {
+        if (!socket) return;
+        socket.disconnect();
+        socket = null;
+      }
+
+      function joinWorkspace() {
+        const projectId = document.getElementById("projectSelect").value;
+        const workspaceId = document.getElementById("workspaceSelect").value;
+
+        if (!projectId || !workspaceId) {
+          log("Please select project and workspace", "error");
+          return;
+        }
+
+        emit("project-workspace:join", {
+          userId: currentUser.id,
+          projectId,
+          workspaceId,
+          timestamp: Date.now(),
+        });
+
+        document.getElementById("leaveBtn").disabled = false;
+        document.getElementById("fileChangeBtn").disabled = false;
+        document.getElementById("cursorMoveBtn").disabled = false;
+      }
+
+      function leaveWorkspace() {
+        emit("project-workspace:leave", {});
+        document.getElementById("leaveBtn").disabled = true;
+        document.getElementById("fileChangeBtn").disabled = true;
+        document.getElementById("cursorMoveBtn").disabled = true;
+      }
+
+      function sendFileChange() {
+        const projectId = document.getElementById("projectSelect").value;
+
+        emit("project:file-changed", {
+          projectId,
+          filePath: "/src/index.ts",
+          changes: {
+            type: "modify",
+            content: "console.log('hello');",
+            lineNumber: 10,
+          },
+          version: Math.floor(Math.random() * 100),
+        });
+      }
+
+      function sendCursorMove() {
+        const projectId = document.getElementById("projectSelect").value;
+
+        emit("cursor:moved", {
+          projectId,
+          filePath: "/src/index.ts",
+          position: {
+            x: Math.random() * 800,
+            y: Math.random() * 600,
+            line: Math.floor(Math.random() * 100),
+            column: Math.floor(Math.random() * 80),
+          },
+        });
+      }
+
+      function emit(event, payload) {
+        if (!socket) {
+          log("Not connected", "error");
+          return;
+        }
+
+        log(`➡ ${event}\n${JSON.stringify(payload, null, 2)}`, "out");
+        socket.emit(event, payload);
+      }
+    </script>
+  </body>
+</html>

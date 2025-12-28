@@ -4,23 +4,21 @@ const options: Options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "TrialCheckout Core API Docs",
+      title: "PurpleMerit Backend Developer Assessment API Docs",
       version: "1.0.0",
-      description: "API documentation for merchant dashboard of trialcheckout",
+      description: "",
     },
+    basePath: "/api/v1",
     servers: [
       {
-        url: "http://localhost:8888", // replace with your server’s url
+        url: "http://localhost:8888/api/v1",
       },
       {
-        url: "https://dev.api.trialcheckouts.com",
-      },
-      {
-        url: "https://api.trialcheckouts.com",
+        url: "https://pm-assessment.shikharcodes.com/api/v1",
       },
     ],
   },
-  apis: ["./src/api/**/*.ts", "./src/app.ts"],
+  apis: ["./src/modules/api/**/*.ts", "./src/app.ts"],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
