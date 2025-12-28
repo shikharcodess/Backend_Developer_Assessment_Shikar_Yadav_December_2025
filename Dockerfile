@@ -18,11 +18,12 @@ RUN apk add --no-cache wget
 COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 COPY --from=builder /app/dist ./dist
+COPY prisma.config.ts ./
 COPY src/prisma ./src/prisma
 COPY src/public ./src/public
 
 ENV NODE_ENV=production PORT=8888
 EXPOSE 8888
 
-# Start application
-CMD ["node", "dist/index.js"]
+# Start application (run migrations first, then start server)
+CMD npx prisma migrate deploy && node dist/index.js
